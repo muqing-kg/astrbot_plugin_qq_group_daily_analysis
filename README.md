@@ -2,18 +2,18 @@
 
 # 群聊日常分析插件
 
-[![Plugin Version](https://img.shields.io/badge/Latest_Version-v4.11.2-blue.svg?style=for-the-badge&color=76bad9)](https://github.com/SXP-Simon/astrbot-qq-group-daily-analysis)
+[![Plugin Version](https://img.shields.io/badge/Latest_Version-v4.11.2-blue.svg?style=for-the-badge&color=76bad9)](https://github.com/muqing-kg/astrbot_plugin_qq_group_daily_analysis)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-ff69b4?style=for-the-badge)](https://github.com/AstrBotDevs/AstrBot)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SXP-Simon/astrbot_plugin_qq_group_daily_analysis) 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://github.com/muqing-kg/astrbot_plugin_qq_group_daily_analysis) 
 
 <table align="center" style="border: none;">
   <tr>
     <td style="border: none;" align="center">
-      <a href="https://qm.qq.com/q/oTzIrdDBIc"><img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/QQ.png" width="300" alt="QQ Group"></a>
+      <a href="https://qm.qq.com/q/oTzIrdDBIc"><img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/QQ.png" width="300" alt="QQ Group"></a>
     </td>
     <td style="border: none;" align="center">
-      <a href="https://t.me/AstrBotPluginGroupDailyAnalysis"><img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/TG.png" width="300" alt="Telegram Group"></a>
+      <a href="https://t.me/AstrBotPluginGroupDailyAnalysis"><img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/TG.png" width="300" alt="Telegram Group"></a>
     </td>
   </tr>
   <tr>
@@ -36,29 +36,29 @@ _✨ 一个基于 AstrBot 的智能群聊分析插件，支持 **OneBot** (NapCa
   <tr>
     <td align="center" width="33.3%" valign="top">
       <p><b>Scrapbook (默认)</b></p>
-      <img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/scrapbook-demo.jpg" alt="scrapbook" width="100%">
+      <img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/scrapbook-demo.jpg" alt="scrapbook" width="100%">
     </td>
     <td align="center" width="33.3%" valign="top">
       <p><b>Retro Futurism</b></p>
-      <img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/retro_futurism-demo.jpg" alt="retro_futurism" width="100%">
+      <img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/retro_futurism-demo.jpg" alt="retro_futurism" width="100%">
     </td>
     <td align="center" width="33.3%" valign="top">
       <p><b>HatsuneMiku</b></p>
-      <img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/HatsuneMiku-demo.jpg" alt="HatsuneMiku" width="100%">
+      <img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/HatsuneMiku-demo.jpg" alt="HatsuneMiku" width="100%">
     </td>
   </tr>
   <tr>
     <td align="center" width="33.3%" valign="top">
       <p><b>Hack</b></p>
-      <img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/hack-demo.jpg" alt="hack" width="100%">
+      <img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/hack-demo.jpg" alt="hack" width="100%">
     </td>
     <td align="center" width="33.3%" valign="top">
       <p><b>ATRI</b></p>
-      <img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/ATRI-demo.jpg" alt="ATRI" width="100%">
+      <img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/ATRI-demo.jpg" alt="ATRI" width="100%">
     </td>
     <td align="center" width="33.3%" valign="top">
       <p><b>BlueArchive</b></p>
-      <img src="https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/BlueArchive-demo.jpg" alt="BlueArchive" width="100%">
+      <img src="https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/BlueArchive-demo.jpg" alt="BlueArchive" width="100%">
     </td>
   </tr>
 </table>
@@ -465,8 +465,8 @@ uv run scripts\debug_render.py -t HatsuneMiku -o debug_miku.html
 
 ❤️ 特别感谢所有 Contributors 的贡献 ❤️
 
-<a href="https://github.com/SXP-Simon/astrbot_plugin_qq_group_daily_analysis/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=SXP-Simon/astrbot_plugin_qq_group_daily_analysis&max=200&columns=14" />
+<a href="https://github.com/muqing-kg/astrbot_plugin_qq_group_daily_analysis/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=muqing-kg/astrbot_plugin_qq_group_daily_analysis&max=200&columns=14" />
 </a>
 
 ## 许可证

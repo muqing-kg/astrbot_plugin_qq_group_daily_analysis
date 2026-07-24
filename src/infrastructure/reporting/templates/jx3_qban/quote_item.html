@@ -1,0 +1,74 @@
+{% set quote_emojis = [
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_01.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_02.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_03.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_04.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_05.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_06.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_07.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_08.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_09.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_01.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_02.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_03.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_04.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_05.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_06.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_07.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_08.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_09.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_10.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_11.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_12.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_13.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_14.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_15.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_16.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_17.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_18.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_19.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_20.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_21.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_22.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_23.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_24.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_25.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_26.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_27.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_28.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_29.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_30.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_31.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_32.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_33.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_34.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_35.webp",
+    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_36.webp"
+] %}
+{% for quote in quotes %}
+<div class="quote-wrapper">
+    <div class="q-flex-container">
+        <div class="q-user-col">
+            {% if quote.avatar_url %}
+            <div class="q-avatar-box">
+                <img src="{{ quote.avatar_url }}" class="q-avatar">
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="q-content-col">
+            <div class="q-sender-name">{{ quote.sender }}</div>
+            <div class="q-bubble-wrap">
+                <div class="q-bubble">
+                    <div class="q-content">{{ quote.content }}</div>
+                </div>
+                <img class="quote-floating-emoji" src="{{ quote_emojis | random }}" alt="金句表情">
+            </div>
+            <div class="q-analysis-note">
+                <span class="note-label">📝 唐小珂的高性能分析：</span>
+                {{ quote.reason | safe }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
