@@ -93,9 +93,12 @@ def ensure_base() -> None:
 
 
 def icon_urls() -> list[str]:
-    icons = sorted(ICON_DIR.glob("icon_*.webp")) + sorted(ICON_DIR.glob("emoji_*.webp"))
+    """Use unique emoji_* stickers only (icon_* are aliases and would duplicate)."""
+    icons = sorted(ICON_DIR.glob("emoji_*.webp"))
     if not icons:
-        icons = sorted(ICON_DIR.glob("icon_*.png")) + sorted(ICON_DIR.glob("emoji_*.png"))
+        icons = sorted(ICON_DIR.glob("emoji_*.png"))
+    if not icons:
+        icons = sorted(ICON_DIR.glob("icon_*.webp")) or sorted(ICON_DIR.glob("icon_*.png"))
     if not icons:
         av = ASSET / "quality_avatar.jpg"
         if av.exists():
@@ -181,36 +184,65 @@ def replace_big_images(text: str, urls: dict[str, str]) -> str:
 
 
 
+
 def replace_small_icons(text: str, icons: list[str]) -> str:
-    """Use a jinja icon pool so hero/section/badge kawaii icons randomize at render time."""
+    """Inject unique-no-repeat random pool for fixed kawaii slots at render time."""
     if not icons:
         return text
 
     arr = ",\n    ".join(f'"{u}"' for u in icons)
-    pool = "{% set jx3_kawaii_icons = [\n    " + arr + "\n] %}\n"
-
-    # inject pool once near top of body/html content (after <body> if present, else file head)
+    pool_decl = "{% set jx3_kawaii_icons = [\n    " + arr + "\n] %}\n"
+    # Shared bag across the whole page so hero/section/badge never repeat until exhausted.
+    macro = """{% set jx3_bag_state = namespace(bags={}) %}
+{% macro jx3_take(pool_name='page') -%}
+{%- if pool_name not in jx3_bag_state.bags -%}
+{%- set _ = jx3_bag_state.bags.update({pool_name: (jx3_kawaii_icons|list)}) -%}
+{%- endif -%}
+{%- set bag = jx3_bag_state.bags[pool_name] -%}
+{%- if bag|length == 0 -%}
+{%- set _ = jx3_bag_state.bags.update({pool_name: (jx3_kawaii_icons|list)}) -%}
+{%- set bag = jx3_bag_state.bags[pool_name] -%}
+{%- endif -%}
+{%- set idx = (range(0, bag|length)|list|random) -%}
+{%- set item = bag.pop(idx) -%}
+{{- item -}}
+{%- endmacro %}
+"""
+    header = pool_decl + macro
     if "jx3_kawaii_icons" not in text:
         if "<body" in text:
-            text = re.sub(r"(<body[^>]*>)", r"\1\n" + pool, text, count=1, flags=re.I)
+            text = re.sub(r"(<body[^>]*>)", r"\1\n" + header, text, count=1, flags=re.I)
         else:
-            text = pool + text
+            text = header + text
     else:
         text = re.sub(
-            r"\{%\s*set\s+jx3_kawaii_icons\s*=\s*\[[\s\S]*?\]\s*%\}",
-            pool.strip(),
+            r"\{%\s*set\s*jx3_kawaii_icons\s*=\s*\[[\s\S]*?\]\s*%\}",
+            pool_decl.strip(),
             text,
             count=1,
         )
+        if "macro jx3_take" not in text:
+            text = text.replace(pool_decl.strip(), header.strip(), 1)
+        else:
+            text = re.sub(
+                r"\{%\s*set\s*jx3_bag_state\s*=\s*namespace\(bags=\{\}\)\s*%\}[\s\S]*?\{%\s*endmacro\s*%\}",
+                macro.strip(),
+                text,
+                count=1,
+            )
 
-    # replace fixed src on kawaii icons with random pick from pool
-    text = re.sub(
+    # fixed slots: runtime unique random via jx3_take (not build-time hardcode)
+    pattern = re.compile(
         r'(<img\s+class="(hero-kawaii|section-kawaii|badge-kawaii)"\s*(?:\n\s*)?src=")[^"]*(")',
-        r'\1{{ jx3_kawaii_icons | random }}\3',
-        text,
-        flags=re.S,
+        re.S,
     )
+
+    def _slot_repl(m: re.Match[str]) -> str:
+        return m.group(1) + "{{ jx3_take('page') }}" + m.group(3)
+
+    text = pattern.sub(_slot_repl, text)
     return text
+
 
 def replace_header_bg(text: str) -> str:
     if not HEADER_BG.exists():
@@ -246,6 +278,46 @@ def replace_header_bg(text: str) -> str:
     text = text.replace("CSSVAR_JX3_HEADER_BG", "")
     return text
 
+
+
+
+def ensure_emoji_align_css(text: str) -> str:
+    css = """
+        /* jx3-emoji-align */
+        .section-kawaii,
+        .badge-kawaii,
+        .hero-kawaii,
+        .item-emoji,
+        .topic-emoji,
+        .title-emoji,
+        .quote-floating-emoji {
+            width: 42px !important;
+            height: 42px !important;
+            object-fit: contain !important;
+            object-position: center center !important;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.55);
+            padding: 2px;
+            box-sizing: border-box;
+            display: inline-block;
+            vertical-align: middle;
+            overflow: hidden;
+        }
+        .badge-kawaii { width: 28px !important; height: 28px !important; border-radius: 8px; }
+        .quote-floating-emoji { width: 36px !important; height: 36px !important; }
+"""
+    if "jx3-emoji-align" in text:
+        text = re.sub(
+            r"/\* jx3-emoji-align \*/[\s\S]*?(?=\n\s*/\*|\n\s*</style>)",
+            css.strip() + "\n        ",
+            text,
+            count=1,
+        )
+        return text
+    idx = text.find("</style>")
+    if idx >= 0:
+        text = text[:idx] + css + text[idx:]
+    return text
 
 
 def ensure_header_readable_css(text: str) -> str:
@@ -360,39 +432,59 @@ def patch_main(path: Path, urls: dict[str, str], icons: list[str]) -> None:
     text = replace_header_bg(text)
     text = ensure_character_image_css(text)
     text = ensure_header_readable_css(text)
+    text = ensure_emoji_align_css(text)
     text = fix_hero_title_break(text, path.name)
     write_text(path, text)
 
 
 
 
+
 def replace_fragment_emojis(text: str, icons: list[str]) -> str:
-    """Replace ATRI remote emoji lists in topic/quote/title fragments with local icon set."""
+    """Fragment emoji pools + unique random macro usage for loops."""
     if not icons:
         return text
     arr = ",\n    ".join(f'"{u}"' for u in icons)
-
-    def repl_block(name: str, content: str) -> str:
+    # Keep full pool for fragments
+    for name in ("quote_emojis", "topic_emojis", "title_emojis"):
         pattern = r"\{%\s*set\s+" + re.escape(name) + r"\s*=\s*\[[\s\S]*?\]\s*%\}"
         replacement = "{% set " + name + " = [\n    " + arr + "\n] %}"
-        new_content, n = re.subn(pattern, replacement, content, count=1)
+        text, n = re.subn(pattern, replacement, text, count=1)
         if n == 0:
             print(f"WARN no block for {name}")
-            return content
-        print(f"replaced {name} with {len(icons)} icons")
-        return new_content
+        else:
+            print(f"replaced {name} with {len(icons)} icons")
 
-    text = repl_block("quote_emojis", text)
-    text = repl_block("topic_emojis", text)
-    text = repl_block("title_emojis", text)
+    # inject unique-take helper for fragments
+    helper = """{% set jx3_frag_state = namespace(bags={}) %}
+{% macro jx3_take_from(pool, pool_name='frag') -%}
+{%- set key = pool_name -%}
+{%- if key not in jx3_frag_state.bags -%}
+{%- set _ = jx3_frag_state.bags.update({key: (pool|list)}) -%}
+{%- endif -%}
+{%- set bag = jx3_frag_state.bags[key] -%}
+{%- if bag|length == 0 -%}
+{%- set _ = jx3_frag_state.bags.update({key: (pool|list)}) -%}
+{%- set bag = jx3_frag_state.bags[key] -%}
+{%- endif -%}
+{%- set idx = (range(0, bag|length)|list|random) -%}
+{%- set item = bag.pop(idx) -%}
+{{- item -}}
+{%- endmacro %}
+"""
+    if "macro jx3_take_from" not in text:
+        text = helper + text
+
+    # replace random usage with unique take
+    text = text.replace("{{ quote_emojis | random }}", "{{ jx3_take_from(quote_emojis, 'quote') }}")
+    text = text.replace("{{ topic_emojis | random }}", "{{ jx3_take_from(topic_emojis, 'topic') }}")
+    text = text.replace("{{ title_emojis | random }}", "{{ jx3_take_from(title_emojis, 'title') }}")
     return text
 
 def patch_fragments(path: Path, icons: list[str] | None = None) -> None:
     text = brand_text_only(path.read_text(encoding="utf-8"))
     if icons:
         text = replace_fragment_emojis(text, icons)
-    write_text(path, text)
-
     write_text(path, text)
 
 
