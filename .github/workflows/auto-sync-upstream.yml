@@ -1,0 +1,132 @@
+name: auto-sync-upstream
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-sync-upstream
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup git identity and remotes
+        run: |
+          set -euo pipefail
+          git config user.name "wechat-avatar-sync[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Real upstream (original plugin). origin is this fork.
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream https://github.com/SXP-Simon/astrbot_plugin_qq_group_daily_analysis.git
+          git fetch upstream --tags
+          git fetch origin
+
+      - name: Snapshot maintenance files
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/wb-maint/.github/workflows /tmp/wb-maint/scripts
+          cp .github/workflows/auto-sync-upstream.yml /tmp/wb-maint/.github/workflows/auto-sync-upstream.yml
+          cp scripts/apply_wechat_avatar_patch.py /tmp/wb-maint/scripts/apply_wechat_avatar_patch.py
+          cp scripts/apply_soft_glass_template.py /tmp/wb-maint/scripts/apply_soft_glass_template.py
+          cp scripts/apply_fork_branding.py /tmp/wb-maint/scripts/apply_fork_branding.py
+          cp scripts/apply_jx3_qban_template.py /tmp/wb-maint/scripts/apply_jx3_qban_template.py
+          cp WECHATBRIDGE.md /tmp/wb-maint/WECHATBRIDGE.md
+          mkdir -p /tmp/wb-maint/assets/custom/templates
+          cp assets/custom/soft_glass_character.jpg /tmp/wb-maint/assets/custom/soft_glass_character.jpg
+          cp -a assets/custom/templates/soft_glass /tmp/wb-maint/assets/custom/templates/soft_glass
+          cp -a assets/custom/jx3_qban /tmp/wb-maint/assets/custom/jx3_qban
+          if [ -d assets/custom/templates/jx3_qban ]; then cp -a assets/custom/templates/jx3_qban /tmp/wb-maint/assets/custom/templates/jx3_qban; fi
+          # optional local ignore rules
+          if [ -f .gitignore ]; then
+            cp .gitignore /tmp/wb-maint/.gitignore
+          fi
+
+      - name: Rebuild main = upstream + maintenance + branding
+        run: |
+          set -euo pipefail
+          git checkout -B main
+          git reset --hard upstream/main
+          mkdir -p .github/workflows scripts assets/custom/templates
+          cp /tmp/wb-maint/.github/workflows/auto-sync-upstream.yml .github/workflows/auto-sync-upstream.yml
+          cp /tmp/wb-maint/scripts/apply_wechat_avatar_patch.py scripts/apply_wechat_avatar_patch.py
+          cp /tmp/wb-maint/scripts/apply_soft_glass_template.py scripts/apply_soft_glass_template.py
+          cp /tmp/wb-maint/scripts/apply_fork_branding.py scripts/apply_fork_branding.py
+          cp /tmp/wb-maint/scripts/apply_jx3_qban_template.py scripts/apply_jx3_qban_template.py
+          cp /tmp/wb-maint/WECHATBRIDGE.md WECHATBRIDGE.md
+          cp /tmp/wb-maint/assets/custom/soft_glass_character.jpg assets/custom/soft_glass_character.jpg
+          cp -a /tmp/wb-maint/assets/custom/templates/soft_glass assets/custom/templates/soft_glass
+          cp -a /tmp/wb-maint/assets/custom/jx3_qban assets/custom/jx3_qban
+          if [ -d /tmp/wb-maint/assets/custom/templates/jx3_qban ]; then mkdir -p assets/custom/templates; cp -a /tmp/wb-maint/assets/custom/templates/jx3_qban assets/custom/templates/jx3_qban; fi
+          if [ -f /tmp/wb-maint/.gitignore ]; then
+            cp /tmp/wb-maint/.gitignore .gitignore
+          fi
+          # soft_glass sources + branding on main so plugin metadata/repo already point to fork
+          python3 scripts/apply_soft_glass_template.py
+          python3 scripts/apply_jx3_qban_template.py
+          python3 scripts/apply_fork_branding.py
+          git add -A
+          if git diff --cached --quiet; then
+            echo "main already current"
+          else
+            git commit -m "chore(maint): upstream mirror + soft_glass + jx3_qban + fork branding"
+          fi
+          git push origin main --force-with-lease
+
+      - name: Rebuild wechat-avatar = upstream + patches + branding
+        run: |
+          set -euo pipefail
+          git checkout -B wechat-avatar
+          git reset --hard upstream/main
+          mkdir -p .github/workflows scripts assets/custom/templates
+          cp /tmp/wb-maint/.github/workflows/auto-sync-upstream.yml .github/workflows/auto-sync-upstream.yml
+          cp /tmp/wb-maint/scripts/apply_wechat_avatar_patch.py scripts/apply_wechat_avatar_patch.py
+          cp /tmp/wb-maint/scripts/apply_soft_glass_template.py scripts/apply_soft_glass_template.py
+          cp /tmp/wb-maint/scripts/apply_fork_branding.py scripts/apply_fork_branding.py
+          cp /tmp/wb-maint/scripts/apply_jx3_qban_template.py scripts/apply_jx3_qban_template.py
+          cp /tmp/wb-maint/WECHATBRIDGE.md WECHATBRIDGE.md
+          cp /tmp/wb-maint/assets/custom/soft_glass_character.jpg assets/custom/soft_glass_character.jpg
+          cp -a /tmp/wb-maint/assets/custom/templates/soft_glass assets/custom/templates/soft_glass
+          cp -a /tmp/wb-maint/assets/custom/jx3_qban assets/custom/jx3_qban
+          if [ -d /tmp/wb-maint/assets/custom/templates/jx3_qban ]; then mkdir -p assets/custom/templates; cp -a /tmp/wb-maint/assets/custom/templates/jx3_qban assets/custom/templates/jx3_qban; fi
+          if [ -f /tmp/wb-maint/.gitignore ]; then
+            cp /tmp/wb-maint/.gitignore .gitignore
+          fi
+          python3 scripts/apply_wechat_avatar_patch.py
+          python3 scripts/apply_soft_glass_template.py
+          python3 scripts/apply_jx3_qban_template.py
+          python3 scripts/apply_fork_branding.py
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes after patch" >&2
+            exit 1
+          fi
+          git commit -m "fix(onebot): WeChatBridge avatar + soft_glass + jx3_qban + fork branding"
+          git push origin wechat-avatar --force-with-lease
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Auto sync"
+            echo "- strategy: reset to upstream/main then reapply patches (no merge conflicts)"
+            echo "- main: upstream + soft_glass + jx3_qban + fork branding"
+            echo "- wechat-avatar: upstream + avatar + soft_glass + jx3_qban + fork branding"
+            echo "- origin: https://github.com/muqing-kg/astrbot_plugin_qq_group_daily_analysis"
+            echo "- upstream: https://github.com/SXP-Simon/astrbot_plugin_qq_group_daily_analysis"
+            git log --oneline -2 main || true
+            git log --oneline -2 wechat-avatar || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+

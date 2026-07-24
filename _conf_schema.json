@@ -71,7 +71,9 @@
                     "text",
                     "html"
                 ],
-                "default": ["image"],
+                "default": [
+                    "image"
+                ],
                 "hint": "选择分析报告的输出方式（可多选）。image=图片、text=纯文本摘要、html=可交互式网页文件。多选仅在定时分析发送时时报告按顺序依次发送，手动触发时只发送第一个选中的格式，例如 image+html 会发送图片并通过外链提供 HTML 报告。QQ 官方图片/HTML 报告优先显示事件昵称，昵称缺失时使用群内稳定匿名名；文本报告由独立 Markdown 模块使用成员艾特展示身份。其他平台保持原有昵称文本格式。"
             },
             "report_template": {
@@ -79,8 +81,10 @@
                 "description": "报告模板",
                 "options": [
                     "ATRI",
+                    "jx3_qban",
                     "BlueArchive",
                     "scrapbook",
+                    "soft_glass",
                     "retro_futurism",
                     "HatsuneMiku",
                     "hack",
@@ -89,7 +93,7 @@
                     "format"
                 ],
                 "default": "scrapbook",
-                "hint": "分析报告使用的HTML模板名称，QQ 端可以使用 `/设置模板` 查看使用指南，使用`/查看模板` 命令查看模板样式效果。其他平台不支持合并转发，可以到 [模板](https://github.com/SXP-Simon/astrbot_plugin_qq_group_daily_analysis/tree/main/assets) 文件夹中查看模板样式效果"
+                "hint": "分析报告使用的HTML模板名称，QQ 端可以使用 `/设置模板` 查看使用指南，使用`/查看模板` 命令查看模板样式效果。其他平台不支持合并转发，可以到 [模板](https://github.com/muqing-kg/astrbot_plugin_qq_group_daily_analysis/tree/main/assets) 文件夹中查看模板样式效果"
             },
             "profile_display_mode": {
                 "type": "string",
@@ -173,7 +177,10 @@
             "t2i_r1_type": {
                 "type": "string",
                 "description": "第一轮：图片格式",
-                "options": ["jpeg", "png"],
+                "options": [
+                    "jpeg",
+                    "png"
+                ],
                 "default": "png",
                 "hint": "建议：PNG 格式无损但体积较大；JPEG 格式体积较小。"
             },
@@ -191,7 +198,11 @@
             "t2i_r1_device_scale": {
                 "type": "string",
                 "description": "第一轮：分辨率等级",
-                "options": ["normal", "high", "ultra"],
+                "options": [
+                    "normal",
+                    "high",
+                    "ultra"
+                ],
                 "default": "ultra",
                 "hint": "影响图片清晰度。normal=1.0x, high=1.3x, ultra=1.8x。高质量日报建议 ultra。"
             },
@@ -209,7 +220,10 @@
             "t2i_r2_type": {
                 "type": "string",
                 "description": "第二轮 (回退)：图片格式",
-                "options": ["jpeg", "png"],
+                "options": [
+                    "jpeg",
+                    "png"
+                ],
                 "default": "jpeg",
                 "hint": "回退策略建议使用 jpeg 以减少渲染压力。"
             },
@@ -227,7 +241,11 @@
             "t2i_r2_device_scale": {
                 "type": "string",
                 "description": "第二轮 (回退)：分辨率等级",
-                "options": ["normal", "high", "ultra"],
+                "options": [
+                    "normal",
+                    "high",
+                    "ultra"
+                ],
                 "default": "high",
                 "hint": "回退建议使用 high/normal 以降低复杂页面的内存消耗和超时概率。"
             },
@@ -245,7 +263,10 @@
             "t2i_font_source": {
                 "type": "string",
                 "description": "t2i 渲染环境切换",
-                "options": ["Mainland", "Overseas"],
+                "options": [
+                    "Mainland",
+                    "Overseas"
+                ],
                 "default": "Overseas",
                 "hint": "字体和静态资源的访问环境，内地（Mainland）、海外（Overseas），切换环境会自动应用下方对应的镜像站地址、语言标识(简体中文/繁体中文)及字体优先级。（实测 Overseas 也可以正常渲染简体中文）"
             },
