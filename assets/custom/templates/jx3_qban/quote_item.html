@@ -1,13 +1,19 @@
+{% set jx3_frag_state = namespace(bags={}) %}
+{% macro jx3_take_from(pool, pool_name='frag') -%}
+{%- set key = pool_name -%}
+{%- if key not in jx3_frag_state.bags -%}
+{%- set _ = jx3_frag_state.bags.update({key: (pool|list)}) -%}
+{%- endif -%}
+{%- set bag = jx3_frag_state.bags[key] -%}
+{%- if bag|length == 0 -%}
+{%- set _ = jx3_frag_state.bags.update({key: (pool|list)}) -%}
+{%- set bag = jx3_frag_state.bags[key] -%}
+{%- endif -%}
+{%- set idx = (range(0, bag|length)|list|random) -%}
+{%- set item = bag.pop(idx) -%}
+{{- item -}}
+{%- endmacro %}
 {% set quote_emojis = [
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_01.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_02.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_03.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_04.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_05.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_06.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_07.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_08.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_09.webp",
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_01.webp",
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_02.webp",
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_03.webp",
@@ -62,7 +68,7 @@
                 <div class="q-bubble">
                     <div class="q-content">{{ quote.content }}</div>
                 </div>
-                <img class="quote-floating-emoji" src="{{ quote_emojis | random }}" alt="金句表情">
+                <img class="quote-floating-emoji" src="{{ jx3_take_from(quote_emojis, 'quote') }}" alt="金句表情">
             </div>
             <div class="q-analysis-note">
                 <span class="note-label">📝 唐小珂的高性能分析：</span>

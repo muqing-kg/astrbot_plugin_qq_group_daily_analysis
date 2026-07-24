@@ -2533,20 +2533,34 @@
         .date-box * {
             color: inherit;
         }
+
+        /* jx3-emoji-align */
+        .section-kawaii,
+        .badge-kawaii,
+        .hero-kawaii,
+        .item-emoji,
+        .topic-emoji,
+        .title-emoji,
+        .quote-floating-emoji {
+            width: 42px !important;
+            height: 42px !important;
+            object-fit: contain !important;
+            object-position: center center !important;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.55);
+            padding: 2px;
+            box-sizing: border-box;
+            display: inline-block;
+            vertical-align: middle;
+            overflow: hidden;
+        }
+        .badge-kawaii { width: 28px !important; height: 28px !important; border-radius: 8px; }
+        .quote-floating-emoji { width: 36px !important; height: 36px !important; }
 </style>
 </head>
 
 <body>
 {% set jx3_kawaii_icons = [
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_01.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_02.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_03.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_04.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_05.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_06.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_07.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_08.webp",
-    "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/icon_09.webp",
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_01.webp",
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_02.webp",
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_03.webp",
@@ -2584,6 +2598,20 @@
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_35.webp",
     "https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@wechat-avatar/assets/custom/jx3_qban/icons/emoji_36.webp"
 ] %}
+{% set jx3_bag_state = namespace(bags={}) %}
+{% macro jx3_take(pool_name='page') -%}
+{%- if pool_name not in jx3_bag_state.bags -%}
+{%- set _ = jx3_bag_state.bags.update({pool_name: (jx3_kawaii_icons|list)}) -%}
+{%- endif -%}
+{%- set bag = jx3_bag_state.bags[pool_name] -%}
+{%- if bag|length == 0 -%}
+{%- set _ = jx3_bag_state.bags.update({pool_name: (jx3_kawaii_icons|list)}) -%}
+{%- set bag = jx3_bag_state.bags[pool_name] -%}
+{%- endif -%}
+{%- set idx = (range(0, bag|length)|list|random) -%}
+{%- set item = bag.pop(idx) -%}
+{{- item -}}
+{%- endmacro %}
 
     <svg width="0" height="0" style="position:absolute;visibility:hidden;pointer-events:none" aria-hidden="true"
         focusable="false">
@@ -2816,7 +2844,7 @@
                             </svg>
                         </div>
                         Overview
-                        <img class="hero-kawaii" src="{{ jx3_kawaii_icons | random }}"
+                        <img class="hero-kawaii" src="{{ jx3_take('page') }}"
                             alt="cute icon">
                     </div>
                     <h2 class="hero-title">来看看今天都发生了什么吧！</h2>
@@ -2891,13 +2919,13 @@
                             </svg></div>
                         <div>
                             <h3 class="section-title">心跳潮汐<img class="section-kawaii"
-                                    src="{{ jx3_kawaii_icons | random }}"
+                                    src="{{ jx3_take('page') }}"
                                     alt="kawaii icon"></h3>
                             <div class="section-sub">一整天的心跳节拍，由唐小珂为你完美记录</div>
                         </div>
                     </div>
                     <div class="section-badge">TIDE CHART <img class="badge-kawaii"
-                            src="{{ jx3_kawaii_icons | random }}" alt="badge icon">
+                            src="{{ jx3_take('page') }}" alt="badge icon">
                     </div>
                 </div>
                 <div class="html-slot">{{ hourly_chart_html | safe }}</div>
@@ -2911,13 +2939,13 @@
                             </svg></div>
                         <div>
                             <h3 class="section-title">高亮记忆碎片<img class="section-kawaii"
-                                    src="{{ jx3_kawaii_icons | random }}"
+                                    src="{{ jx3_take('page') }}"
                                     alt="kawaii icon"></h3>
                             <div class="section-sub">唐小珂捕获的最亮眼的记忆碎片！</div>
                         </div>
                     </div>
                     <div class="section-badge">TOPIC BOARD <img class="badge-kawaii"
-                            src="{{ jx3_kawaii_icons | random }}" alt="badge icon">
+                            src="{{ jx3_take('page') }}" alt="badge icon">
                     </div>
                 </div>
                 <div class="html-slot">{{ topics_html | safe }}</div>
@@ -2931,13 +2959,13 @@
                             </svg></div>
                         <div>
                             <h3 class="section-title">神人名片颁发<img class="section-kawaii"
-                                    src="{{ jx3_kawaii_icons | random }}"
+                                    src="{{ jx3_take('page') }}"
                                     alt="kawaii icon"></h3>
                             <div class="section-sub">颁发给各位的高性能称号！</div>
                         </div>
                     </div>
                     <div class="section-badge">SPOTLIGHT <img class="badge-kawaii"
-                            src="{{ jx3_kawaii_icons | random }}" alt="badge icon">
+                            src="{{ jx3_take('page') }}" alt="badge icon">
                     </div>
                 </div>
                 <div class="html-slot title-grid">{{ titles_html | safe }}</div>
@@ -2951,13 +2979,13 @@
                             </svg></div>
                         <div>
                             <h3 class="section-title">唐小珂的藏宝匣<img class="section-kawaii"
-                                    src="{{ jx3_kawaii_icons | random }}"
+                                    src="{{ jx3_take('page') }}"
                                     alt="kawaii icon"></h3>
                             <div class="section-sub">唐小珂偷偷记在小本子上的宝藏名言！</div>
                         </div>
                     </div>
                     <div class="section-badge">PRECIOUS WORDS <img class="badge-kawaii"
-                            src="{{ jx3_kawaii_icons | random }}" alt="badge icon">
+                            src="{{ jx3_take('page') }}" alt="badge icon">
                     </div>
                 </div>
                 <div class="html-slot">{{ quotes_html | safe }}</div>
@@ -2972,13 +3000,13 @@
                             </svg></div>
                         <div>
                             <h3 class="section-title">唐小珂观澜报告<img class="section-kawaii"
-                                    src="{{ jx3_kawaii_icons | random }}"
+                                    src="{{ jx3_take('page') }}"
                                     alt="kawaii icon"></h3>
                             <div class="section-sub">来自唐小珂的每日特别观测报告！</div>
                         </div>
                     </div>
                     <div class="section-badge">GROUP VIBE <img class="badge-kawaii"
-                            src="{{ jx3_kawaii_icons | random }}" alt="badge icon">
+                            src="{{ jx3_take('page') }}" alt="badge icon">
                     </div>
                 </div>
                 <div class="html-slot">{{ chat_quality_html | safe }}</div>
@@ -2993,13 +3021,13 @@
                             </svg></div>
                         <div>
                             <h3 class="section-title">能量解析雷达<img class="section-kawaii"
-                                    src="{{ jx3_kawaii_icons | random }}"
+                                    src="{{ jx3_take('page') }}"
                                     alt="kawaii icon"></h3>
                             <div class="section-sub">维持唐小珂运行与心跳的能量消耗~</div>
                         </div>
                     </div>
                     <div class="section-badge">ENERGY COST <img class="badge-kawaii"
-                            src="{{ jx3_kawaii_icons | random }}" alt="badge icon">
+                            src="{{ jx3_take('page') }}" alt="badge icon">
                     </div>
                 </div>
                 <div class="token-grid">

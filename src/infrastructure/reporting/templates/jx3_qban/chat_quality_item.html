@@ -1,3 +1,18 @@
+{% set jx3_frag_state = namespace(bags={}) %}
+{% macro jx3_take_from(pool, pool_name='frag') -%}
+{%- set key = pool_name -%}
+{%- if key not in jx3_frag_state.bags -%}
+{%- set _ = jx3_frag_state.bags.update({key: (pool|list)}) -%}
+{%- endif -%}
+{%- set bag = jx3_frag_state.bags[key] -%}
+{%- if bag|length == 0 -%}
+{%- set _ = jx3_frag_state.bags.update({key: (pool|list)}) -%}
+{%- set bag = jx3_frag_state.bags[key] -%}
+{%- endif -%}
+{%- set idx = (range(0, bag|length)|list|random) -%}
+{%- set item = bag.pop(idx) -%}
+{{- item -}}
+{%- endmacro %}
 ﻿<style>
     .quality-card {
         position: relative;
