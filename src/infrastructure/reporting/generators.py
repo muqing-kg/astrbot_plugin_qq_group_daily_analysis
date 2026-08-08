@@ -391,44 +391,56 @@ class ReportGenerator(IReportGenerator):
 
             logger.info(f"图片报告HTML渲染完成，长度: {len(html_content)} 字符")
 
-            # 从配置中获取两轮渲染策略
-            render_strategies = self.config_manager.get_t2i_rendering_strategies()
+            # 用户配置的两轮策略 + 服务端 500/过载时的轻量兜底 (WECHATBRIDGE_T2I_RESILIENCE_V1)
+            render_strategies = list(
+                self.config_manager.get_t2i_rendering_strategies()
+            )
+            render_strategies.extend(self._get_emergency_t2i_strategies())
 
             # 使用信号量控制并发进入渲染引擎
             async with self._render_semaphore:
                 logger.debug(f"[T2I] 已进入渲染队列 (群: {group_id})")
+                logger.info(
+                    f"[T2I] HTML 长度 {len(html_content)} 字符，"
+                    f"将尝试 {len(render_strategies)} 轮渲染"
+                )
 
                 last_exception = None
+                last_error_hint = None
 
                 for attempt, image_options in enumerate(render_strategies, 1):
                     try:
-                        # Cleanse options
-                        if image_options.get("type") == "png":
-                            image_options.pop("quality", None)
+                        # 勿污染配置 dict：每轮使用副本
+                        options = dict(image_options)
+                        if options.get("type") == "png":
+                            options.pop("quality", None)
 
-                        logger.info(f"正在尝试第 {attempt} 轮渲染策略: {image_options}")
+                        logger.info(f"正在尝试第 {attempt} 轮渲染策略: {options}")
 
                         # 改为获取 bytes 数据，避免 OneBot 无法访问内部 URL
                         image_data = await html_render_func(
                             html_content,  # 渲染后的HTML内容
                             {},  # 空数据字典，因为数据已包含在HTML中
                             False,  # return_url=False，直接获取图片数据
-                            image_options,
+                            options,
                         )
 
                         if image_data:
-                            # 校验是否为合法图片（防止 T2I 返回 500 错误 HTML 字符流）
+                            # 校验是否为合法图片（防止 T2I 返回 500 错误 HTML/纯文本）
                             is_valid = False
                             actual_data_head = None
+                            payload_for_error: bytes | None = None
 
                             if isinstance(image_data, bytes):
                                 actual_data_head = image_data[:10]
+                                payload_for_error = image_data[:4096]
                             elif isinstance(image_data, str) and os.path.exists(
                                 image_data
                             ):
                                 try:
                                     with open(image_data, "rb") as f:
-                                        actual_data_head = f.read(10)
+                                        payload_for_error = f.read(4096)
+                                        actual_data_head = payload_for_error[:10]
                                 except Exception as e:
                                     logger.warning(f"读取图片临时文件失败: {e}")
 
@@ -439,33 +451,43 @@ class ReportGenerator(IReportGenerator):
                                 ) or actual_data_head.startswith(b"\x89PNG"):
                                     is_valid = True
                                 else:
-                                    # 尝试解析 HTML 错误（如 502 Bad Gateway）
-                                    html_error = None
-                                    if isinstance(image_data, bytes):
-                                        html_error = self._extract_html_error_summary(
-                                            image_data
+                                    render_error = None
+                                    if payload_for_error:
+                                        render_error = (
+                                            self._extract_render_error_summary(
+                                                payload_for_error
+                                            )
                                         )
-                                    elif isinstance(image_data, str) and os.path.exists(
-                                        image_data
-                                    ):
-                                        try:
-                                            with open(image_data, "rb") as f:
-                                                # 读取前 4KB 即可识别 HTML 错误
-                                                html_error = (
-                                                    self._extract_html_error_summary(
-                                                        f.read(4096)
-                                                    )
-                                                )
-                                        except Exception:
-                                            pass
-
-                                    if html_error:
+                                    if render_error:
+                                        last_error_hint = render_error
                                         logger.warning(
-                                            f"[T2I] 渲染引擎返回了错误页面而非图片: {html_error}"
+                                            f"[T2I] 渲染引擎返回了错误而非图片: {render_error}"
                                         )
                                     else:
+                                        text_preview = ""
+                                        try:
+                                            text_preview = actual_data_head.decode(
+                                                "utf-8", errors="replace"
+                                            )
+                                        except Exception:
+                                            text_preview = ""
+                                        last_error_hint = (
+                                            f"非图片数据 head_hex={actual_data_head.hex()}"
+                                            + (
+                                                f" text={text_preview!r}"
+                                                if text_preview.strip()
+                                                else ""
+                                            )
+                                        )
                                         logger.warning(
-                                            f"渲染结果似乎不是有效的图片数据 (头部: {actual_data_head.hex()})"
+                                            f"渲染结果似乎不是有效的图片数据"
+                                            f" (头部: {actual_data_head.hex()}"
+                                            + (
+                                                f", 文本: {text_preview!r}"
+                                                if text_preview.strip()
+                                                else ""
+                                            )
+                                            + ")"
                                         )
 
                             if is_valid:
@@ -483,18 +505,25 @@ class ReportGenerator(IReportGenerator):
                                     return image_data, html_content
 
                         logger.warning(
-                            f"渲染轮次 {attempt} ({image_options['type']}) 返回了无效或空数据"
+                            f"渲染轮次 {attempt} ({options.get('type')}) 返回了无效或空数据"
                         )
 
                     except Exception as e:
                         logger.warning(f"渲染轮次 {attempt} 失败: {e}")
                         last_exception = e
+                        last_error_hint = str(e)
                         if attempt < len(render_strategies):
                             logger.info("准备尝试下一轮回退策略")
                         continue
 
                 # 如果所有策略都失败
-                logger.error(f"所有渲染尝试都失败。最后一个错误: {last_exception}")
+                logger.error(
+                    f"所有渲染尝试都失败。最后一个错误: {last_exception}；"
+                    f"最近非图片响应: {last_error_hint}。"
+                    f"常见原因：AstrBot T2I 端点 500/过载、超时过短、分辨率 ultra 内存不足、"
+                    f"HTML 过大或外链资源拉取失败。请加大 t2i 超时、降低 device_scale，"
+                    f"或更换/自建 T2I 服务。"
+                )
                 return None, html_content
 
         except Exception as e:
@@ -1555,6 +1584,85 @@ class ReportGenerator(IReportGenerator):
         b64 = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
         return f"data:image/svg+xml;base64,{b64}"
 
+
+    # --- WECHATBRIDGE_T2I_RESILIENCE_V1 start ---
+    @staticmethod
+    def _get_emergency_t2i_strategies() -> list[dict]:
+        """用户策略失败后的轻量兜底（降低分辨率/改 JPEG，拉长超时）。"""
+        return [
+            {
+                "full_page": True,
+                "type": "jpeg",
+                "quality": 75,
+                "device_scale_factor_level": "normal",
+                "timeout": 120000,
+                "_emergency": True,
+            },
+            {
+                "full_page": True,
+                "type": "jpeg",
+                "quality": 60,
+                "device_scale_factor_level": "normal",
+                "timeout": 180000,
+                "_emergency": True,
+            },
+        ]
+
+    def _extract_html_error_summary(self, data: bytes) -> str | None:
+        """兼容旧调用名；实际走统一的渲染错误摘要。"""
+        return self._extract_render_error_summary(data)
+
+    def _extract_render_error_summary(self, data: bytes) -> str | None:
+        """从 T2I 返回的非图片字节流中提取可读错误（HTML 页或纯文本 500）。"""
+        try:
+            if not data:
+                return None
+            if data.startswith(b"\x89PNG") or data.startswith(b"\xff\xd8"):
+                return None
+
+            content = data.decode("utf-8", errors="ignore").strip()
+            if not content:
+                return None
+
+            sample = content[:240]
+            printable_ratio = sum(
+                1 for c in sample if c.isprintable() or c.isspace()
+            ) / max(len(sample), 1)
+            if printable_ratio < 0.85:
+                return None
+
+            content_lower = content.lower()
+            if "<html" in content_lower or "<!doctype html" in content_lower:
+                title_match = re.search(
+                    r"<title>(.*?)</title>", content, re.IGNORECASE | re.DOTALL
+                )
+                if title_match:
+                    return f"HTML 错误页: {title_match.group(1).strip()}"
+
+                h1_match = re.search(
+                    r"<h1>(.*?)</h1>", content, re.IGNORECASE | re.DOTALL
+                )
+                if h1_match:
+                    return f"HTML 错误页: {h1_match.group(1).strip()}"
+
+                return f"HTML 响应 (前100字): {content[:100].strip()}..."
+
+            first_line = content.splitlines()[0].strip() if content else ""
+            known = (
+                "internal server error",
+                "bad gateway",
+                "service unavailable",
+                "gateway timeout",
+                "error",
+            )
+            if any(k in content_lower for k in known) or first_line:
+                preview = first_line[:180] or content[:180]
+                return f"文本错误响应: {preview}"
+        except Exception:
+            pass
+        return None
+    # --- WECHATBRIDGE_T2I_RESILIENCE_V1 end ---
+
     async def close(self):
         """释放资源，关闭缓存和 session"""
         if self._avatar_session:
@@ -1568,27 +1676,3 @@ class ReportGenerator(IReportGenerator):
         except Exception as e:
             logger.warning(f"关闭头像缓存失败: {e}")
 
-    def _extract_html_error_summary(self, data: bytes) -> str | None:
-        """从返回的字节流中尝试提取 HTML 错误信息（如 <title>）"""
-        try:
-            content = data.decode("utf-8", errors="ignore")
-            content_lower = content.lower()
-            if "<html" in content_lower or "<!doctype html" in content_lower:
-                # 尝试提取标题
-                title_match = re.search(
-                    r"<title>(.*?)</title>", content, re.IGNORECASE | re.DOTALL
-                )
-                if title_match:
-                    return f"HTML 错误页: {title_match.group(1).strip()}"
-
-                # 尝试提取 h1
-                h1_match = re.search(
-                    r"<h1>(.*?)</h1>", content, re.IGNORECASE | re.DOTALL
-                )
-                if h1_match:
-                    return f"HTML 错误页: {h1_match.group(1).strip()}"
-
-                return f"HTML 响应 (前100字): {content[:100].strip()}..."
-        except Exception:
-            pass
-        return None
