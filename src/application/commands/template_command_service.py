@@ -109,7 +109,7 @@ class TemplateCommandService:
             if preview_image_path:
                 node_content.append(Image.fromFileSystem(preview_image_path))
             else:
-                cdn_url = f"https://fastly.jsdelivr.net/gh/SXP-Simon/astrbot_plugin_qq_group_daily_analysis@main/assets/{template_name}-demo.jpg"
+                cdn_url = f"https://fastly.jsdelivr.net/gh/muqing-kg/astrbot_plugin_qq_group_daily_analysis@main/assets/{template_name}-demo.jpg"
                 node_content.append(Image.fromURL(cdn_url))
 
             node_list.append(Node(uin=bot_id, name=template_name, content=node_content))
