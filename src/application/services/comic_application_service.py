@@ -81,6 +81,25 @@ class ComicApplicationService:
                 prompt_template=prompt_template or None,
             )
             if sb_rec and isinstance(sb_rec, dict):
+                sb_prompts: dict[str, Any] = {}
+                if trace and trace.metadata.get("llm_prompts"):
+                    for k, p in trace.metadata["llm_prompts"].items():
+                        if "comic" in k or k == "comic_storyboards":
+                            sb_prompts[k] = p
+                if not sb_prompts and storyboards:
+                    sb_prompts["comic_storyboards"] = {
+                        "prompt": prompt_template
+                        or "自动从群聊话题中提取漫画多格分镜与生图提示词",
+                        "system_prompt": f"漫画分镜师 | 人格: {persona_id or character_name}",
+                        "completion": storyboards[0].get("scene", "")
+                        if storyboards
+                        else "",
+                        "prompt_tokens": getattr(storyboard_usage, "prompt_tokens", 0),
+                        "completion_tokens": getattr(
+                            storyboard_usage, "completion_tokens", 0
+                        ),
+                        "tokens": getattr(storyboard_usage, "total_tokens", 0),
+                    }
                 sb_rec.setdefault("payload", {}).update(
                     {
                         "character_name": character_name,
@@ -91,6 +110,7 @@ class ComicApplicationService:
                             storyboard_usage, "completion_tokens", 0
                         ),
                         "total_tokens": getattr(storyboard_usage, "total_tokens", 0),
+                        "prompts": sb_prompts,
                     }
                 )
                 if not storyboards:
@@ -152,6 +172,14 @@ class ComicApplicationService:
                                 "reference_images_count": len(images_data),
                                 "image_bytes": len(external_comic_bytes),
                                 "success": True,
+                                "prompts": {
+                                    "comic_drawing": {
+                                        "prompt": scene_prompt,
+                                        "system_prompt": f"绘图后端: {backend} | 角色方案: {character_name} | 参考图数: {len(images_data)}",
+                                        "completion": f"出图完成（体积: {round(len(external_comic_bytes) / 1024, 1)} KB）",
+                                        "provider_type": backend,
+                                    }
+                                },
                             }
                         )
                     return external_comic_bytes, None
@@ -265,6 +293,18 @@ class ComicApplicationService:
                         final_comic_bytes = None
 
             if draw_rec and isinstance(draw_rec, dict):
+                draw_prompts = {
+                    "comic_drawing": {
+                        "prompt": scene_prompt,
+                        "system_prompt": f"绘图引擎: {backend} | 角色方案: {character_name} | 参考图数: {len(images_data)}",
+                        "completion": f"出图完成（体积: {round(len(final_comic_bytes) / 1024, 1)} KB）"
+                        if final_comic_bytes
+                        else (
+                            f"出图未产出: {last_error}" if last_error else "未产出图像"
+                        ),
+                        "provider_type": backend,
+                    }
+                }
                 draw_rec.setdefault("payload", {}).update(
                     {
                         "backend": backend,
@@ -275,6 +315,7 @@ class ComicApplicationService:
                         else 0,
                         "success": bool(final_comic_bytes),
                         "last_error": last_error,
+                        "prompts": draw_prompts,
                     }
                 )
 
@@ -472,30 +513,70 @@ class ComicApplicationService:
                 return image_resource
         return None
 
-    async def _fetch_reference_image(
-        self, relative_path: str
-    ) -> tuple[bytes, str] | None:
-        """从插件上传目录获取已选参考图。
+    async def _fetch_reference_image(self, image_ref: str) -> tuple[bytes, str] | None:
+        """从插件目录、AstrBot files、本地路径、HTTP URL 或 Base64 Data URL 获取已选参考图。
 
         Args:
-            relative_path: WebUI 保存的插件数据目录相对路径。
+            image_ref: 包含文件路径、URL 或 Base64 Data URL 的字符串。
 
         Returns:
             图片字节和 MIME 类型；加载失败时返回 None。
         """
-        try:
-            plugin_data_dir = self.plugin_data_dir.resolve()
-            image_path = (plugin_data_dir / relative_path).resolve()
-            image_path.relative_to(plugin_data_dir)
-            if not image_path.is_file():
-                logger.warning(f"[Comic] 找不到已选参考图: {relative_path}")
+        import base64
+
+        if not image_ref or not isinstance(image_ref, str):
+            return None
+
+        image_ref = image_ref.strip()
+
+        # 1. 支持 Data URL 格式 (data:image/png;base64,xxxx)
+        if image_ref.startswith("data:image/"):
+            try:
+                header, b64_data = image_ref.split(",", 1)
+                mime_type = header.split(";")[0].replace("data:", "").strip()
+                return base64.b64decode(b64_data), mime_type or "image/png"
+            except Exception as e:
+                logger.error(f"[Comic] 解析 Data URL 参考图失败: {e}")
                 return None
 
-            guessed_type, _ = mimetypes.guess_type(image_path.name)
-            if not guessed_type or not guessed_type.startswith("image/"):
-                logger.warning(f"[Comic] 已选参考图不是支持的图片文件: {relative_path}")
+        # 2. 支持 base64:// 格式
+        if image_ref.startswith("base64://"):
+            try:
+                return base64.b64decode(image_ref[9:]), "image/png"
+            except Exception as e:
+                logger.error(f"[Comic] 解析 Base64 参考图失败: {e}")
                 return None
-            return image_path.read_bytes(), guessed_type
-        except (OSError, ValueError) as exc:
-            logger.error(f"[Comic] 获取已选参考图失败 {relative_path}: {exc}")
+
+        # 3. 支持 HTTP / HTTPS 远程 URL
+        if image_ref.startswith(("http://", "https://")):
+            try:
+                import httpx
+
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    resp = await client.get(image_ref)
+                    if resp.status_code == 200:
+                        mime_type = resp.headers.get("content-type", "image/png").split(
+                            ";"
+                        )[0]
+                        return resp.content, mime_type
+            except Exception as e:
+                logger.error(f"[Comic] 下载远程参考图失败 {image_ref}: {e}")
+                return None
+
+        # 4. 支持本地文件路径（插件目录、AstrBot 根目录、或绝对路径）
+        try:
+            candidate_paths = [
+                self.plugin_data_dir / image_ref,
+                Path(image_ref),
+                self.plugin_data_dir / "reference_images" / image_ref,
+            ]
+            for p in candidate_paths:
+                if p.is_file():
+                    guessed_type, _ = mimetypes.guess_type(p.name)
+                    return p.read_bytes(), guessed_type or "image/png"
+
+            logger.warning(f"[Comic] 找不到已选参考图: {image_ref}")
+            return None
+        except Exception as exc:
+            logger.error(f"[Comic] 获取已选参考图失败 {image_ref}: {exc}")
             return None

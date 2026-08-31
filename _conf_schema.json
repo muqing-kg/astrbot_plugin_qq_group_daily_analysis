@@ -570,7 +570,11 @@
                             },
                             "reference_images": {
                                 "description": "角色参考图",
-                                "type": "file",
+                                "type": "list",
+                                "_special": "image_list",
+                                "items": {
+                                    "type": "string"
+                                },
                                 "default": [],
                                 "file_types": [
                                     "jpg",
@@ -594,7 +598,7 @@
             },
             "drawing_reference_image": {
                 "description": "旧版漫画参考图（兼容迁移）",
-                "type": "file",
+                "type": "list",
                 "default": [],
                 "file_types": [
                     "jpg",
