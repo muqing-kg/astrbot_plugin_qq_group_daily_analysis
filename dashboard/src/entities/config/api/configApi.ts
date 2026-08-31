@@ -77,3 +77,31 @@ export async function savePluginConfig(
     return { success: false, message: msg || "保存配置请求失败" };
   }
 }
+
+export async function uploadConfigFile(
+  file: File,
+  configKey?: string
+): Promise<{ path: string } | null> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const query = configKey ? `?config_key=${encodeURIComponent(configKey)}` : "";
+  const res = await apiPost<{ path?: string }>(`config/upload_file${query}`, formData);
+  const data = extractData<{ path?: string }>(res);
+  if (data && typeof data === "object" && data.path) {
+    return { path: data.path };
+  }
+  return null;
+}
+
+export async function fetchConfigFileContent(
+  path: string
+): Promise<{ data_url: string; filename?: string } | null> {
+  const res = await apiGet<{ data_url?: string; filename?: string }>(
+    `config/file/content?path=${encodeURIComponent(path)}`
+  );
+  const data = extractData<{ data_url?: string; filename?: string }>(res);
+  if (data && typeof data === "object" && data.data_url) {
+    return { data_url: data.data_url, filename: data.filename };
+  }
+  return null;
+}
