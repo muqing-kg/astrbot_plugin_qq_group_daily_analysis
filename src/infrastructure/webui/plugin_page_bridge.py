@@ -207,6 +207,18 @@ class PluginPageWebUIBridge:
                 ["POST"],
                 "Save and persist updated plugin configuration",
             ),
+            (
+                f"/{PLUGIN_NAME}/config/upload_file",
+                self.api_upload_config_file,
+                ["POST"],
+                "Upload a config reference image/file and store to files/ folder",
+            ),
+            (
+                f"/{PLUGIN_NAME}/config/file/content",
+                self.api_get_config_file_content,
+                ["GET"],
+                "Get thumbnail or content of a config file path",
+            ),
         ]
 
         for path, handler, methods, desc in routes:
@@ -1405,4 +1417,156 @@ class PluginPageWebUIBridge:
             )
         except Exception as e:
             logger.error(f"保存配置异常: {e}", exc_info=True)
+            return error_response(str(e), status_code=500)
+
+    async def api_upload_config_file(self) -> Any:
+        """上传插件配置所需的文件/参考图，并存入合规的 files/{folder}/ 物理路径"""
+        try:
+            folder = "daily_comic_comic_characters_templates_character_reference_images"
+            if hasattr(request, "query") and request.query.get("config_key"):
+                folder = request.query.get("config_key").replace(".", "_")
+
+            # 优先使用 AstrBot 官方的标准 plugin_data 目录，与 AstrBot 原生保持 100% 一致
+            target_dirs: list[Path] = []
+            try:
+                from astrbot.api.star import StarTools
+
+                data_dir = StarTools.get_data_dir(PLUGIN_NAME)
+                if data_dir:
+                    target_dirs.append(data_dir / "files" / folder)
+            except Exception:
+                pass
+
+            target_dirs.append(
+                Path.cwd() / "data" / "plugin_data" / PLUGIN_NAME / "files" / folder
+            )
+            plugin_root = Path(__file__).resolve().parents[3]
+            target_dirs.append(plugin_root / "files" / folder)
+
+            for d in target_dirs:
+                d.mkdir(parents=True, exist_ok=True)
+
+            saved_paths: list[str] = []
+
+            # 1. 尝试从 multipart 上传中读取
+            if hasattr(request, "files"):
+                uploaded_files = await request.files()
+                for key in uploaded_files.keys():
+                    for f in uploaded_files.getlist(key):
+                        orig_name = getattr(f, "filename", "") or "uploaded_image.png"
+                        clean_name = re.sub(r"[^\w\.\-]", "_", orig_name)
+                        ts = int(time.time() * 1000)
+                        final_name = f"{ts}_{clean_name}"
+                        file_bytes = await f.read()
+                        if file_bytes:
+                            for d in target_dirs:
+                                (d / final_name).write_bytes(file_bytes)
+                            saved_paths.append(f"files/{folder}/{final_name}")
+
+            # 2. 尝试从 JSON (包含 Base64 或 Data URL) 中解析
+            if not saved_paths and hasattr(request, "json"):
+                data = await request.json(default={})
+                if isinstance(data, dict):
+                    raw_data = (
+                        data.get("file_data") or data.get("data") or data.get("base64")
+                    )
+                    file_name = data.get("filename") or "upload.png"
+                    clean_name = re.sub(r"[^\w\.\-]", "_", file_name)
+                    if raw_data and isinstance(raw_data, str):
+                        if raw_data.startswith("data:"):
+                            _, b64 = raw_data.split(",", 1)
+                        else:
+                            b64 = raw_data
+                        file_bytes = base64.b64decode(b64)
+                        ts = int(time.time() * 1000)
+                        final_name = f"{ts}_{clean_name}"
+                        for d in target_dirs:
+                            (d / final_name).write_bytes(file_bytes)
+                        saved_paths.append(f"files/{folder}/{final_name}")
+
+            if not saved_paths:
+                return error_response("未检测到有效的文件数据", status_code=400)
+
+            return json_response(
+                {
+                    "status": "ok",
+                    "data": {
+                        "path": saved_paths[0],
+                        "paths": saved_paths,
+                        "folder": folder,
+                    },
+                }
+            )
+        except Exception as e:
+            logger.error(f"上传配置文件异常: {e}", exc_info=True)
+            return error_response(str(e), status_code=500)
+
+    async def api_get_config_file_content(self) -> Any:
+        """获取配置中的文件（如角色参考图）内容用于 WebUI 在线缩略图展示"""
+        try:
+            rel_path = (
+                request.query.get("path", "").strip()
+                if request and hasattr(request, "query")
+                else ""
+            )
+            if not rel_path:
+                return error_response("Missing path parameter", status_code=400)
+
+            # 搜索候选目录
+            search_roots: list[Path] = []
+            try:
+                from astrbot.api.star import StarTools
+
+                data_dir = StarTools.get_data_dir(PLUGIN_NAME)
+                if data_dir:
+                    search_roots.append(data_dir)
+            except Exception:
+                pass
+
+            search_roots.append(Path.cwd() / "data" / "plugin_data" / PLUGIN_NAME)
+            plugin_root = Path(__file__).resolve().parents[3]
+            search_roots.append(plugin_root)
+            search_roots.append(Path.cwd() / "data" / "plugins" / PLUGIN_NAME)
+
+            target_file: Path | None = None
+            clean_rel = rel_path.lstrip("/\\")
+            for root in search_roots:
+                cand = (root / clean_rel).resolve()
+                if cand.is_file() and cand.exists():
+                    target_file = cand
+                    break
+
+            if not target_file:
+                # 尝试纯文件名在 files/ 下模糊搜索
+                filename = Path(clean_rel).name
+                for root in search_roots:
+                    files_dir = root / "files"
+                    if files_dir.exists():
+                        for match in files_dir.rglob(filename):
+                            if match.is_file():
+                                target_file = match
+                                break
+                    if target_file:
+                        break
+
+            if not target_file or not target_file.is_file():
+                return error_response(f"File {rel_path} not found", status_code=404)
+
+            ext = target_file.suffix.lower().lstrip(".")
+            mime_type = f"image/{'jpeg' if ext in ('jpg', 'jpeg') else ext}"
+            with open(target_file, "rb") as f:
+                b64_content = base64.b64encode(f.read()).decode("utf-8")
+
+            return json_response(
+                {
+                    "status": "ok",
+                    "data": {
+                        "path": rel_path,
+                        "filename": target_file.name,
+                        "data_url": f"data:{mime_type};base64,{b64_content}",
+                    },
+                }
+            )
+        except Exception as e:
+            logger.error(f"获取配置文件内容异常: {e}", exc_info=True)
             return error_response(str(e), status_code=500)
