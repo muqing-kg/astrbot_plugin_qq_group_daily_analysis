@@ -1,12 +1,49 @@
 # 更新日志 (CHANGELOG)
 
+## [v5.1.0] - 插件存储与数据管理控制台上线、配置历史自动备份检测与全面无衬线现代字体重构
 
-## [v5.0.14] - 统一原生与独立 WebUI 配置文件上传、群漫画任务记录与防止重复投递
+*   **🗄️ 插件存储与数据全景管理控制台**：
+    *   **全生命周期 6 大存储分区物理探测与管理**：实时探测并展示插件运行时产生的 6 大数据分区占用与文件数量：
+        1. `data/temp/io_temp_img_*`（临时渲染缓存）：长图与分析图渲染过程中生成的中间态缓存；
+        2. `plugin_data/cache/avatars/`（群成员头像缓存）：用于报告内嵌头像与话题发言人展示的头像图片；
+        3. `report_output_dir`（历史报告文件）：各群聊已生成的日报图片长图与 HTML 网页离线报告存档；
+        4. `plugin_data/config_backups/`（配置历史自动备份）：版本升级或旧版配置迁移时自动留存的历次配置备份；
+        5. `plugin_data/custom_t2i_templates/`（自定义模板备份）：用户个性化修改过的 T2I 报告模板备份与覆盖文件；
+        6. `plugin_data/files/`（配置参考素材）：在配置中心中上传的角色立绘、漫画参考图等持久化素材。
+    *   **分区细粒度独立清空与二次确认防呆设计**：每个分区提供独立的清空操作入口，配有明确的清理影响提示与 Ant Design `Popconfirm` 气泡二次确认，空分区自动置灰禁用，防止误操作核心数据。
 
-*   **🛡️ 【全新】AstrBot 原生与独立 WebUI 角色参考图双端文件上传协同**：
-    *   **原生文件组件完整支持**：将 `_conf_schema.json` 中的 `reference_images` 标准化为 `"type": "file"`，用户在 AstrBot 原生配置面板中可直接点击「上传文件」调用原生文件选择弹窗上传本地图片。
-    *   **独立 WebUI 文件落盘持久化**：重构独立 WebUI 中的图片上传机制，上传时自动通过后端 API 保存到规范的 `files/{folder}/` 物理目录并写入合法相对路径，彻底解决以前写入 Base64 导致原生校验器报错 `Invalid file path` 的核心冲突。
-    *   **全源参考图智能解析**：漫画后台增强多格式加载能力，同时无缝兼容规范文件路径、Data URL (Base64)、`base64://`、远程 HTTP/HTTPS URL 以及插件数据目录文件。
+## [v5.0.17] - 修复 /查看模板 提示“未找到任何可用的报告模板”
+*   **🛠️ 【修复】模板管理命令与可用模板检测修复 (#218)**：
+    *   **修复 `/查看模板` 提示未找到可用模板**：修正 `TemplateCommandService` 对模板主入口文件的探测规则，由错误的 `template.html` 修复为精准匹配 `html_template.html` 与 `image_template.html`，并过滤 `format` 等内部组件目录，恢复全部 8 套内置精美模板（`scrapbook`、`retro_futurism`、`ATRI`、`HatsuneMiku` 等）的预览与切换功能。
+
+## [v5.0.16] - 群漫画分镜 Prompt 正反例约束强化与健壮解析
+
+*   **🎨 【修复】群漫画分镜 Prompt 正反例约束强化与多层级 JSON 健壮解析**：
+    *   **Prompt 格式规范与 GOOD / BAD 正反例**：在分镜提取 Prompt 模板中增加显式的正反例对照，强制大模型将全局设定与 Panel 1 到 Panel N 的每一格详细画面、气泡中文台词及旁白字幕条全部内联写入 `scene` 字符串中，防止模型在最外层仅输出简短套话导致生图时丢失群聊话题。
+    *   **主线优先与多层级结构健壮合并**：重构 `ComicStoryboardAnalyzer` 解析逻辑，优先提取官方约定的 `scene` 主字段，同时自动对外部附加字段进行兼容性检查；若模型额外拆分出 `panels` 或多层嵌套结构，通过零硬编码键名的纯结构递归遍历与段落去重机制自动无缝合并，杜绝任何话题遗漏。
+    *   **配置平滑升级与 Schema 同步**：同步更新 `_conf_schema.json` 中漫画分镜提示词默认值，并在 `ConfigManager` 初始化中增加自动平滑迁移机制，在启动时自动将未改动的存量默认提示词平滑升级为正反例新规范，且完好保留用户的个性化自定义配置。
+
+## [v5.0.15] - 移除飞书废弃接入、平台 SDK 按需懒加载瘦身、建立严格静态类型检查与 Zero Any 架构规范
+
+*   **🚀 【重构】移除飞书废弃接入与平台 SDK 按需懒加载瘦身**：
+    *   **彻底清理 Lark (飞书) 废弃接入**：完全删除未正式上线的飞书平台适配器、依赖引用、导出列表及相关文档，消除未启用平台无意义的内存常驻与额外开销。
+    *   **平台 SDK 按需懒加载 (Lazy-Loading)**：重构平台适配器初始化与注册链路，未启用或未配置的平台（如 Telegram、Discord）不再在 AstrBot 启动时强行拉入庞大的底层 SDK，大幅降低插件启动内存开销，避免潜在的三方依赖冲突。
+
+*   **🛡️ 【类型安全】全工程静态类型推导与 Zero `Any` 架构升级**：
+    *   **协议接口化 (`Protocol`) 与消除 `Any` 滥用**：使用 `@runtime_checkable class TemplatePreviewHandler(Protocol)` 彻底重构模板预览路由分发体系，淘汰 `list[Any]` 与动态 `getattr` 强转；使用 `TypedDict`（如 `UserActivityData`）强类型结构化重构统计与可视化数据模型。
+    *   **修复全量 Pyright/Pylance 潜在类型缺陷**：修复潜在未绑定变量、Awaitable 同步/异步混淆、可选属性空指针风险、默认参数类型注解与消息组件安全访问等全部 55 处类型缺陷，达成 Pyright `standard` 模式下 **0 错误、0 警告**。
+    *   **编译期与 CI 门禁自动化**：新增 `pyrightconfig.json` 严格对齐 Python 3.12 与 AstrBot 运行环境；在 GitHub Actions CI 中接入 `npx pyright` 静态类型门禁，并在贡献指南中沉淀 `uv run ruff format . ; uv run ruff check . --fix` 一键化代码质量流水线。
+
+## [v5.0.14] - 统一原生与独立 WebUI 配置协同、修复角色方案同步与参考图校验、Release 产物和流程优化、群漫画任务链路可观测性增强
+
+*   **🛡️ 【核心修复】AstrBot 原生与插件 WebUI 角色方案及参考图双向协同与校验对齐**：
+    *   **严格对齐官方文件目录规则**：将 WebUI 上传与保存的角色参考图目录统一为与 AstrBot 官方核心完全一致的全斜杠规范路径（`files/daily_comic/comic_characters/templates/character/reference_images/{filename}`），彻底解决原生保存时报 `Invalid file path` 格式校验失败以及原生配置面板显示「文件缺失」的核心问题。
+    *   **修复漫画角色方案保存丢失**：修复保存配置时清洗函数误将包含字典的列表（`comic_characters`）识别为纯字符串列表导致方案条目被清空的严重缺陷，实现递归清洗与保留；同时在前端与后端严格确保每个方案条目均绑定 `__template_key: "character"`，解决双端保存后条目消失、原生面板显示「暂无条目」的问题。
+    *   **历史旧数据自动迁移自愈**：保存配置时自动扫描并清洗历史残存的 Data URL (Base64) 图片及旧版下划线路径，自动转存为合规物理文件并修正路径，无需用户手动重配。
+
+*   **📦 【优化】Release 深度瘦身与打包规则统一**：
+    *   **规范 `.gitattributes` 导出排除规则**：完善 `.gitattributes` 中的 `export-ignore` 配置，精确排除未压缩的 `assets/HatsuneMiku/` 资源、文档效果截图、前端开发源码 `dashboard/`、测试套件与调试脚本。
+    *   **单一数据源驱动打包**：简化 GitHub Actions Release 工作流，完全由标准 `.gitattributes` 规则驱动 `git archive` 生成发布压缩包，使 Release 产物体积从 **7.92 MB 骤降至 1.73 MB**（体积缩减 **78%**），包体更轻量、分发更迅速。
 
 *   **📊 【修复】手动触发群漫画 (`/群漫画`) 任务记录与全流程可观测性**：
     *   **完整链路与群信息绑定**：修复手动执行群漫画时因 `TraceContext.set` 参数缺失导致群号、群名、触发方式丢失而未在 WebUI「分析记录」正常归档的问题。
