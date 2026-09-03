@@ -34,6 +34,7 @@ interface TemplateListRendererProps {
   value: unknown;
   providers?: AvailableProvider[];
   personas?: AvailablePersona[];
+  fullKeyPath?: string;
   onChange: (val: unknown) => void;
 }
 
@@ -43,6 +44,7 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
   value,
   providers = [],
   personas = [],
+  fullKeyPath,
   onChange,
 }) => {
   const { token } = theme.useToken();
@@ -106,7 +108,10 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
       }
     }
 
-    const nextList = [...rawList, newItem];
+    const nextList = [...rawList, newItem].map((item) => ({
+      ...item,
+      __template_key: findTemplateKey(item) || templateKey,
+    }));
     onChange(nextList);
     setActiveItemIndex(nextList.length - 1);
   };
@@ -118,11 +123,16 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
     subVal: unknown
   ) => {
     const nextList = rawList.map((item, idx) => {
-      if (idx !== index) return item;
-      const tplKey = findTemplateKey(item);
+      const tplKey = findTemplateKey(item) || templateKeys[0] || "character";
+      if (idx !== index) {
+        return {
+          ...item,
+          __template_key: tplKey,
+        };
+      }
       return {
         ...item,
-        ...(tplKey ? { __template_key: tplKey } : {}),
+        __template_key: tplKey,
         [subFieldKey]: subVal,
       };
     });
@@ -131,7 +141,12 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
 
   // 删除条目
   const handleDeleteItem = (index: number) => {
-    const nextList = rawList.filter((_, idx) => idx !== index);
+    const nextList = rawList
+      .filter((_, idx) => idx !== index)
+      .map((item) => ({
+        ...item,
+        __template_key: findTemplateKey(item) || templateKeys[0] || "character",
+      }));
     onChange(nextList);
     if (activeItemIndex === index) {
       setActiveItemIndex(null);
@@ -143,7 +158,10 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
   // 上移条目
   const handleMoveUp = (index: number) => {
     if (index <= 0) return;
-    const nextList = [...rawList];
+    const nextList = [...rawList].map((item) => ({
+      ...item,
+      __template_key: findTemplateKey(item) || templateKeys[0] || "character",
+    }));
     const temp = nextList[index - 1];
     nextList[index - 1] = nextList[index];
     nextList[index] = temp;
@@ -154,7 +172,10 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
   // 下移条目
   const handleMoveDown = (index: number) => {
     if (index >= rawList.length - 1) return;
-    const nextList = [...rawList];
+    const nextList = [...rawList].map((item) => ({
+      ...item,
+      __template_key: findTemplateKey(item) || templateKeys[0] || "character",
+    }));
     const temp = nextList[index + 1];
     nextList[index + 1] = nextList[index];
     nextList[index] = temp;
@@ -200,6 +221,7 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
           {rawList.map((item, index) => {
+            const itemTemplateKey = findTemplateKey(item) || templateKeys[0] || "character";
             const tpl = findTemplateForItem(item);
             const subItems = tpl?.items || {};
 
@@ -310,6 +332,7 @@ export const TemplateListRenderer: React.FC<TemplateListRendererProps> = ({
                           providers={providers}
                           personas={personas}
                           isSubField={true}
+                          fullKeyPath={`${fullKeyPath || fieldKey}.templates.${itemTemplateKey}.${subKey}`}
                           onChange={(newSubVal) =>
                             handleItemFieldChange(index, subKey, newSubVal)
                           }

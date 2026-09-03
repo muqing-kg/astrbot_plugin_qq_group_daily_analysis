@@ -196,6 +196,8 @@ def load_config_manager_class(plugin_data_dir: Path):
         "_get_comic_character_state_path",
         "_read_comic_character_state",
         "_save_comic_character_state",
+        "_is_legacy_default_comic_prompt",
+        "_migrate_legacy_comic_storyboard_prompts",
     }
     methods = [
         node
@@ -213,6 +215,8 @@ def load_config_manager_class(plugin_data_dir: Path):
         ast.Module(body=[isolated_class], type_ignores=[])
     )
     namespace = {
+        "__name__": "src.infrastructure.config.config_manager",
+        "__package__": "src.infrastructure.config",
         "AstrBotConfig": object,
         "StarTools": SimpleNamespace(get_data_dir=Mock(return_value=plugin_data_dir)),
         "PLUGIN_NAME": "test_plugin",
@@ -1448,3 +1452,165 @@ def test_comic_album_upload_sniffs_local_cached_image_extension(tmp_path):
         album_name="comic",
         strict_mode=False,
     )
+
+
+def test_comic_storyboard_assembler_combines_scene_and_panels():
+    """测试分镜分析器在 LLM 输出 scene 头部和 panels 列表时能够完整拼接所有分格提示词。"""
+    from src.infrastructure.analysis.analyzers.comic_analyzer import (
+        ComicStoryboardAnalyzer,
+    )
+
+    analyzer = ComicStoryboardAnalyzer(context=Mock(), config_manager=Mock())
+    llm_output = json.dumps(
+        {
+            "scene": "A 6-panel comic strip featuring an anthropologist observing chat.",
+            "panels": [
+                {
+                    "panel": 1,
+                    "topic": "宽带与搬家记",
+                    "speech_bubble_text": "断网如断魂！",
+                    "caption_strip_text": "宽带受难记",
+                    "prompt": "Panel 1: The anthropologist sits on floor with router. Bubble: 断网如断魂！ Caption: 宽带受难记",
+                },
+                {
+                    "panel": 2,
+                    "topic": "应届生出路",
+                    "prompt": "Panel 2: Multiple screens glowing. Bubble: 迷路之人！ Caption: 毕业迷茫",
+                },
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    success, result, error = analyzer.parse_structured_response(llm_output)
+    assert success is True
+    assert result is not None
+    assert len(result) == 1
+    scene = result[0]["scene"]
+    assert "A 6-panel comic strip" in scene
+    assert "Panel 1: The anthropologist" in scene
+    assert "Panel 2: Multiple screens" in scene
+    assert "断网如断魂！" in scene
+
+
+def test_comic_storyboard_prompt_contains_good_and_bad_examples():
+    """测试默认分镜 Prompt 模板包含明确的 GOOD / BAD 正反例与全景约束。"""
+    from src.infrastructure.analysis.analyzers.comic_analyzer import (
+        ComicStoryboardAnalyzer,
+    )
+
+    config_mock = Mock()
+    config_mock.get_comic_storyboard_prompt.return_value = ""
+    config_mock.get_max_topics.return_value = 6
+    analyzer = ComicStoryboardAnalyzer(context=Mock(), config_manager=config_mock)
+
+    prompt = analyzer.build_prompt([{"topic": "宽带", "detail": "装宽带"}])
+    assert "GOOD EXAMPLE" in prompt
+    assert "BAD EXAMPLE" in prompt
+    assert "Panel 1" in prompt
+    assert "exact Chinese text" in prompt
+
+
+def test_comic_storyboard_fuzzy_json_consolidation():
+    """测试分镜分析器对任意多层级、自定义键名的未知 JSON 进行递归提取与合并。"""
+    from src.infrastructure.analysis.analyzers.comic_analyzer import (
+        ComicStoryboardAnalyzer,
+    )
+
+    analyzer = ComicStoryboardAnalyzer(context=Mock(), config_manager=Mock())
+
+    # 1. 任意多层嵌套与自定义键名 (如 shots, custom_key)
+    nested_output = json.dumps(
+        {
+            "status": "success",
+            "data": {
+                "header": "A 4-panel comic strip in cyberpunk style.",
+                "story": {
+                    "shots": [
+                        {"description": "Shot 1: Neon city alley with rain."},
+                        {"description": "Shot 2: Terminal glowing with error code."},
+                    ]
+                },
+            },
+        }
+    )
+    success, result, _ = analyzer.parse_structured_response(nested_output)
+    assert success is True
+    assert result is not None
+    scene = result[0]["scene"]
+    assert "A 4-panel comic strip in cyberpunk style." in scene
+    assert "Shot 1: Neon city alley" in scene
+    assert "Shot 2: Terminal glowing" in scene
+
+    # 2. 顶层为数组格式
+    array_output = json.dumps(
+        [
+            {"custom_prompt": "Panel 1: Anime girl drinking coffee."},
+            {"custom_prompt": "Panel 2: Cat jumping onto the table."},
+        ]
+    )
+    success, result, _ = analyzer.parse_structured_response(array_output)
+    assert success is True
+    assert result is not None
+    scene = result[0]["scene"]
+    assert "Panel 1: Anime girl drinking coffee." in scene
+    assert "Panel 2: Cat jumping onto the table." in scene
+
+
+def test_comic_legacy_prompt_auto_migration(tmp_path: Path):
+    """测试 ConfigManager 在初始化时自动将旧版默认提示词迁移为新版 GOOD/BAD 正反例模板。"""
+    from src.infrastructure.analysis.analyzers.comic_analyzer import (
+        DEFAULT_COMIC_STORYBOARD_PROMPT,
+    )
+
+    config_manager_class = load_config_manager_class(tmp_path)
+
+    raw_config = {
+        "prompts": {
+            "comic_analysis_prompts": {
+                "comic_storyboard_prompt": "你是一个资深的漫画分镜师与 AI 绘画提示词专家。\n【核心视觉、台词与双层排版规则】\n请输出包含 \"scene\" 字段的 JSON 对象。"
+            }
+        },
+        "daily_comic": {
+            "comic_characters": [
+                {
+                    "name": "旧人设",
+                    "storyboard_prompt": "你是一个资深的漫画分镜师与 AI 绘画提示词专家。\n【核心视觉、台词与双层排版规则】\n请输出包含 \"scene\" 字段的 JSON 对象。",
+                },
+                {
+                    "name": "自定义人设",
+                    "storyboard_prompt": "我的完全自定义专属提示词，不应被覆盖",
+                },
+            ]
+        },
+    }
+
+    class MockConfig(dict):
+        save_config = Mock()
+
+    config_instance = MockConfig(raw_config)
+    _ = config_manager_class(config_instance)
+
+    # 1. 全局旧版默认应被迁移为新版
+    assert (
+        raw_config["prompts"]["comic_analysis_prompts"]["comic_storyboard_prompt"]
+        == DEFAULT_COMIC_STORYBOARD_PROMPT
+    )
+
+    # 2. 角色列表中的旧版默认应被迁移为新版
+    assert (
+        raw_config["daily_comic"]["comic_characters"][0]["storyboard_prompt"]
+        == DEFAULT_COMIC_STORYBOARD_PROMPT
+    )
+
+    # 3. 用户的自定义专属提示词必须完好保留
+    assert (
+        raw_config["daily_comic"]["comic_characters"][1]["storyboard_prompt"]
+        == "我的完全自定义专属提示词，不应被覆盖"
+    )
+    config_instance.save_config.assert_called()
+
+
+
+
+

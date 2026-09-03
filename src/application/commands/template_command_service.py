@@ -5,7 +5,13 @@ from __future__ import annotations
 import asyncio
 import os
 
-from astrbot.api.message_components import Image, Node, Nodes, Plain
+from astrbot.api.message_components import (
+    BaseMessageComponent,
+    Image,
+    Node,
+    Nodes,
+    Plain,
+)
 
 
 class TemplateCommandService:
@@ -39,28 +45,39 @@ class TemplateCommandService:
                 return candidate
         return None
 
-    async def list_available_templates(self) -> list[str]:
-        """列出所有可用模板。"""
-        template_base_dir = self.resolve_template_base_dir()
-
-        def _list_templates_sync() -> list[str]:
-            if os.path.exists(template_base_dir):
-                return sorted(
-                    [
-                        d
-                        for d in os.listdir(template_base_dir)
-                        if os.path.isdir(os.path.join(template_base_dir, d))
-                        and not d.startswith("__")
-                    ]
-                )
+    def list_available_templates(self) -> list[str]:
+        """获取本地所有可用模板名称列表。"""
+        base_dir = self.resolve_template_base_dir()
+        if not os.path.isdir(base_dir):
             return []
 
-        return await asyncio.to_thread(_list_templates_sync)
+        templates: list[str] = []
+        for item in os.listdir(base_dir):
+            item_path = os.path.join(base_dir, item)
+            if not os.path.isdir(item_path):
+                continue
+            if item.startswith("__") or item.startswith(".") or item == "format":
+                continue
+            if (
+                os.path.isfile(os.path.join(item_path, "html_template.html"))
+                or os.path.isfile(os.path.join(item_path, "image_template.html"))
+                or os.path.isfile(os.path.join(item_path, "template.html"))
+            ):
+                templates.append(item)
+        return sorted(templates)
 
     async def template_exists(self, template_name: str) -> bool:
-        """检查模板目录是否存在。"""
+        """检查模板目录是否存在且包含有效模板文件。"""
         template_dir = os.path.join(self.resolve_template_base_dir(), template_name)
-        return await asyncio.to_thread(os.path.exists, template_dir)
+        if not await asyncio.to_thread(os.path.isdir, template_dir):
+            return False
+        return await asyncio.to_thread(
+            lambda: (
+                os.path.isfile(os.path.join(template_dir, "html_template.html"))
+                or os.path.isfile(os.path.join(template_dir, "image_template.html"))
+                or os.path.isfile(os.path.join(template_dir, "template.html"))
+            )
+        )
 
     def parse_template_input(
         self, template_input: str, available_templates: list[str]
@@ -87,9 +104,9 @@ class TemplateCommandService:
         bot_id: str,
     ) -> Nodes:
         """构建模板预览的合并消息节点。"""
-        node_list = []
+        node_list: list[Node] = []
 
-        header_content = [
+        header_content: list[BaseMessageComponent] = [
             Plain(
                 f"🎨 可用报告模板列表\n📌 当前使用: {current_template}\n💡 使用 /设置模板 [序号] 切换"
             )
@@ -104,7 +121,9 @@ class TemplateCommandService:
                 else f"({index + 1})"
             )
 
-            node_content = [Plain(f"{num_label} {template_name}{current_mark}")]
+            node_content: list[BaseMessageComponent] = [
+                Plain(f"{num_label} {template_name}{current_mark}")
+            ]
             preview_image_path = self.resolve_template_preview_path(template_name)
             if preview_image_path:
                 node_content.append(Image.fromFileSystem(preview_image_path))
@@ -115,3 +134,5 @@ class TemplateCommandService:
             node_list.append(Node(uin=bot_id, name=template_name, content=node_content))
 
         return Nodes(node_list)
+
+    build_preview_nodes = build_template_preview_nodes
